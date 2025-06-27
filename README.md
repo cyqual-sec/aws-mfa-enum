@@ -16,6 +16,8 @@ python aws-mfa-enum.py [-h] (-e EMAIL | -f FILE)
 
 # Output Examples
 
+This script will output either a list of the registered MFA methods or "NONE". Note that "NONE" is the reponse both for AWS accounts that exist and are not protected by MFA as well as for email addresses that are not associated with AWS accounts.
+
 Single MFA method is registered without a leaked account ID
 
 ```bash
