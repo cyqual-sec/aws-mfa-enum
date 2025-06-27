@@ -23,20 +23,62 @@ def enum_aws_mfa_type(email):
         #print(f"Attempting MFA enumeration for {payload} with url {url}")
         response = requests.post(url, headers=headers, data=payload)
         json_response = response.json()
+
+        # Make sure mfaType exists
         if "mfaType" in json_response:
             mfaType = json_response["mfaType"]
-            if mfaType != "U2F":
-                print(f"{email}: {mfaType}")
+
+            # The account has multiple types of methods registered
+            if mfaType == "MULTI" and "mfaTypeList" in json_response:
+                mfaTypeList = json_response["mfaTypeList"]
+                mfaList = ", ".join(mfaTypeList)
+
+                # One of those methods is U2F
+                if "U2F" in mfaTypeList:
+                    payload = {"email": email, "selectedMfaOption": "U2F"}
+                    response = requests.post(url, headers=headers, data=payload)
+                    json_response = response.json()
+
+                    # Check if mfaSerial is present (this shouldn't happen!)
+                    if "mfaSerial" in json_response:
+                        mfaSerial = json_response["mfaSerial"]
+                        account_id = mfaSerial.split(":")[4]
+                        passkeyName = mfaSerial.split("/")[2]
+                        print(f"{email}: {mfaList} - {account_id} - {passkeyName}")
+
+                    # No key found, so just display the list of types
+                    else:
+                        print(f"{email}: {mfaList}")
+
+                # U2F not in the list, so just display the list of types
+                else:
+                    mfaList = ", ".join(mfaTypeList)
+                    print(f"{email}: {mfaList}")
+
+            # The account only has U2F methods registered
+            elif mfaType == "U2F":
+
+                # Check if mfaSerial is present (i.e., there is only one U2F key)
+                if "mfaSerial" in json_response:
+                    mfaSerial = json_response["mfaSerial"]
+                    account_id = mfaSerial.split(":")[4]
+                    passkeyName = mfaSerial.split("/")[2]
+                    print(f"{email}: {mfaType} - {account_id} - {passkeyName}")
+
+                # No mfaSerial found (i.e., multiple keys or AWS fixed it)
+                else:
+                    print(f"{email}: {mfaType}")
+
+            # The account has a single type of non-U2F method registered, so just display the type
             else:
-                mfaSerial = json_response["mfaSerial"]
-                account_id = mfaSerial.split(":")[4]
-                passkeyName = mfaSerial.split("/")[2]
-                print(f"{email}: {mfaType} - {account_id} - {passkeyName}")
+                print(f"{email}: {mfaType}")
+
         else:
             print(f"Error: mfaType not in response.")
+
     except requests.exceptions.RequestException as e:
         print(f"Error checking MFA type for {string}: {e}")
-        return None
+
 
 def process_file(filename):
     try:
@@ -55,7 +97,10 @@ def process_file(filename):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Enumerate the MFA type for AWS root accounts. Provide either a single email address or a filename that contains one email per line. A value of 'None' can mean either the account exists and does not have MFA or the account does not exist."
+        description="""Enumerate the MFA type for AWS root accounts.
+Provide either a single email address or a filename that contains one email per line.
+A value of 'None' can mean either the account exists and does not have MFA or the account does not exist.
+"""
     )
 
     input_group = parser.add_mutually_exclusive_group(required=True)
@@ -77,3 +122,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
