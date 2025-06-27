@@ -14,3 +14,22 @@ The script takes either a single email or a file of emails with one address per 
 python aws-mfa-enum.py [-h] (-e EMAIL | -f FILE)
 ```
 
+# Output Examples
+
+Single MFA method is registered without a leaked account ID
+
+```bash
+email@domain.tld: SW
+```
+
+Multiple MFA methods are registered without a leaked account ID
+
+```bash
+email@domain.tld: MULTI - SW, U2F
+```
+
+Only a single U2F key is registered for MFA, leaking the account ID
+
+```bash
+email@domain.tld: U2F - 123456789012 - keyname-LONGKEYID
+```
